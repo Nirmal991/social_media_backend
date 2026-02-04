@@ -21,6 +21,9 @@ export const HOST = process.env.HOST || '0.0.0.0'
 // export const SMTP_HOST = process.env.SMTP_HOST as string
 // export const SMTP_PORT = parseInt(process.env.SMTP_PORT as string)
 // export const SMTP_SECURE = process.env.SMTP_SECURE === 'true'
+export const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME
+export const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY 
+export const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET
 
 export const MONGO_URI = process.env.MONGO_URI as string
 // export const JWT_SECRET = process.env.JWT_SECRET as string
