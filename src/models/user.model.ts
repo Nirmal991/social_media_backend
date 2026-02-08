@@ -1,5 +1,5 @@
 import mongoose, { Model, Document } from "mongoose";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt, { SignOptions, Secret } from "jsonwebtoken";
 import { ACCESS_TOKEN_EXPIRY, JWT_SECRET } from "../lib";
 
@@ -9,10 +9,10 @@ export interface IUser {
   password: string;
   bio?: string;
   profileImage?: string;
-  posts: mongoose.Types.ObjectId;
+  posts: mongoose.Types.ObjectId[];
   followers: mongoose.Types.ObjectId[];
   following: mongoose.Types.ObjectId[];
-  refreshToken?: String | undefined;
+  refreshToken?: string | undefined;
 }
 
 export interface IUserMethods {
@@ -78,11 +78,12 @@ const userSchema = new mongoose.Schema<
   }
 );
 
-userSchema.pre<IUserDocument>("save", async function () {
+userSchema.pre<IUserDocument>("save", async function (next) {
   if (!this.isModified("password")) {
-    return;
+    return next();
   }
   this.password = await bcrypt.hash(this.password, 10);
+  next();
 });
 
 userSchema.methods.isPasswordCorrect = async function (password: string) {
@@ -115,7 +116,7 @@ userSchema.methods.generateRefreshToken = function () {
 
   return jwt.sign(
     {
-      _id: this.id,
+      _id: this.id.toString(),
     },
     refreshTokenSecret,
     options
