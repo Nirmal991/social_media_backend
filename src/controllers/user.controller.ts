@@ -1,5 +1,27 @@
 import { ApiError, asyncHandler, signUpSchema, uploadOnCloudinary, ApiResponse, loginSchema } from "../lib"
+import { AuthRequest } from "../middlewares";
 import { User } from "../models";
+
+const generateAccessAndRefreshToken = async (userId: string) => {
+
+    try {
+        const user = await User.findById(userId)
+
+        if (!user) {
+            throw new ApiError(404, "User not found");
+        }
+
+        const accessToken = user?.generateAccessToken();
+        const refreshToken = user?.generateRefreshToken();
+
+        user.refreshToken = refreshToken;
+        await user.save({ validateBeforeSave: false });
+
+        return { accessToken, refreshToken }
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong while generating referesh and access token")
+    }
+}
 
 export const registerUser = asyncHandler(async (req, res) => {
 
@@ -55,8 +77,7 @@ export const registerUser = asyncHandler(async (req, res) => {
             throw new ApiError(500, "Something went wroung while creating rhe user")
         }
 
-        const accessToken = createdUser.generateAccessToken();
-        const refreshToken = createdUser.generateRefreshToken();
+        const { accessToken, refreshToken } = await generateAccessAndRefreshToken(createdUser._id)
 
         createdUser.refreshToken = refreshToken;
         await createdUser.save({ validateBeforeSave: false });
@@ -126,8 +147,7 @@ export const loginUser = asyncHandler(async (req, res) => {
             throw new ApiError(401, "Invalid credentails")
         }
 
-        const accessToken = user.generateAccessToken();
-        const refreshToken = user.generateRefreshToken();
+        const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
 
         user.refreshToken = refreshToken;
         user.save({ validateBeforeSave: false });
@@ -173,4 +193,34 @@ export const loginUser = asyncHandler(async (req, res) => {
             errors: [],
         });
     }
+})
+
+export const logoutUser = asyncHandler(async (req: AuthRequest, res) => {
+
+    if (!req.user?._id) {
+        throw new ApiError(401, "Unauthorized");
+    }
+
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $unset: {
+                refreshToken: 1
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res
+        .status(200)
+        .clearCookie("accessToken", options)
+        .clearCookie("refreshToken", options)
+        .json(new ApiResponse(200, {}, "User logged Out"))
 })
