@@ -9,4 +9,3 @@ export * from './ApiResponse.lib'
 export * from './asyncHandler.lib'
 export * from './cloudinary.lib'
 export * from './validate.lib';
-export* from './multer.lib'
