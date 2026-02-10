@@ -1,12 +1,10 @@
 import { Request } from "express";
 import { ApiError, asyncHandler, JWT_SECRET } from "../lib";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { User } from "../models";
+import { IUserDocument, User } from "../models";
 
 export interface AuthRequest extends Request {
-  user?: {
-    _id: string;
-  };
+  user?: IUserDocument  
 }
 
 export interface AccessTokenPayload extends JwtPayload {

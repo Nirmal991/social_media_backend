@@ -1,6 +1,9 @@
-import { ApiError, asyncHandler, signUpSchema, uploadOnCloudinary, ApiResponse, loginSchema } from "../lib"
-import { AuthRequest } from "../middlewares";
+import { ApiError, asyncHandler, signUpSchema, uploadOnCloudinary, ApiResponse, loginSchema, REFRESH_TOKEN_SECRET, removeFromCloudnary } from "../lib"
+import { AccessTokenPayload, AuthRequest, verifyJWT } from "../middlewares";
 import { User } from "../models";
+import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import { Request } from "express";
 
 const generateAccessAndRefreshToken = async (userId: string) => {
 
@@ -143,7 +146,7 @@ export const loginUser = asyncHandler(async (req, res) => {
 
         const isPasswordValid = await user.isPasswordCorrect(password);
 
-        if (!password) {
+        if (!isPasswordValid) {
             throw new ApiError(401, "Invalid credentails")
         }
 
@@ -223,4 +226,330 @@ export const logoutUser = asyncHandler(async (req: AuthRequest, res) => {
         .clearCookie("accessToken", options)
         .clearCookie("refreshToken", options)
         .json(new ApiResponse(200, {}, "User logged Out"))
+})
+
+export const getCurrentUser = asyncHandler(async (req: AuthRequest, res) => {
+    return res
+        .status(200)
+        .json(new ApiResponse(
+            200,
+            req.user,
+            "User fetched successfully"
+        ))
+})
+
+export const refreshAccessToken = asyncHandler(async (req: AuthRequest, res) => {
+    try {
+        const incomingRefreshTOken =
+            req.cookies?.refreshToken ||
+            req.header("Authorization")?.replace("Bearer ", "");
+
+        if (!incomingRefreshTOken) {
+            throw new ApiError(401, "unauthorized request");
+        }
+
+        const decodedToken = jwt.verify(
+            incomingRefreshTOken,
+            REFRESH_TOKEN_SECRET
+        ) as AccessTokenPayload;
+
+        const userId = decodedToken?._id;
+
+        const user = await User.findById(userId);
+
+        if (!user) {
+            throw new ApiError(401, "invalid refresh token");
+        }
+
+        if (incomingRefreshTOken !== user?.refreshToken) {
+            throw new ApiError(401, "refresh token invalid or expired");
+        }
+
+        const newRefreshToken = user.generateRefreshToken();
+        const newAccessToken = user.generateAccessToken();
+
+        user.refreshToken = newRefreshToken;
+        user.save({ validateBeforeSave: false });
+
+        const cookieOptions = {
+            httpOnly: true,
+            secure: true,
+        };
+
+        return res
+            .status(201)
+            .cookie("refreshToken", newRefreshToken, cookieOptions)
+            .cookie("accessToken", newAccessToken, cookieOptions)
+            .json(
+                new ApiResponse(
+                    201,
+                    {
+                        refreshToken: newRefreshToken,
+                        accessToken: newAccessToken,
+                    },
+                    "refresh token successfully created"
+                )
+            );
+    } catch (error: unknown) {
+        console.error("Error: ", error);
+
+        if (error instanceof ApiError) {
+            return res.status(error.statusCode).json({
+                success: false,
+                message: error.message,
+                errors: error.errors,
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            errors: [],
+        });
+    }
+});
+
+export const changePassword = asyncHandler(
+    async (req: AuthRequest, res) => {
+        try {
+            const { oldPassword, newPassword, confirmNewPassword } = req.body;
+
+            if (newPassword !== confirmNewPassword) {
+                throw new ApiError(
+                    400,
+                    "new password and confirm new password do not match"
+                );
+            }
+
+            const userId = req.user?._id;
+            const user = await User.findById(userId);
+
+            if (!user) {
+                throw new ApiError(401, "unauthorized request");
+            }
+
+            const isOldPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+
+            if (!isOldPasswordCorrect) {
+                throw new ApiError(401, "Your old password is not correct");
+            }
+
+            user.password = confirmNewPassword;
+            user.save({ validateBeforeSave: false });
+
+            return res
+                .status(200)
+                .json(new ApiResponse(200, null, "password successfully changed"));
+        } catch (error: unknown) {
+            console.error("Error: ", error);
+
+            if (error instanceof ApiError) {
+                return res.status(error.statusCode).json({
+                    success: false,
+                    message: error.message,
+                    errors: error.errors,
+                });
+            }
+
+            return res.status(500).json({
+                success: false,
+                message: "Internal Server Error",
+                errors: [],
+            });
+        }
+    }
+);
+
+
+export const addBio = asyncHandler(async (req: AuthRequest, res) => {
+    const { bio } = req.body;
+
+    if (!bio || bio == "") {
+        throw new ApiError(401, "Bio cannot be empty");
+    }
+
+    try {
+        const user = await User.findById(req.user?._id);
+
+        if (!user) {
+            throw new ApiError(401, "user not found")
+        }
+
+        user.bio = bio.trim();
+        user.save({ validateBeforeSave: false });
+
+        return res
+            .status(201)
+            .json(new ApiResponse(201, null, "bio added successfully"));
+    } catch (error) {
+        console.error("Error: ", error);
+
+        if (error instanceof ApiError) {
+            return res.status(error.statusCode).json({
+                success: false,
+                message: error.message,
+                errors: error.errors,
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            errors: [],
+        });
+    }
+})
+
+export const updateBio = asyncHandler(async (req: AuthRequest, res) => {
+    try {
+        const { updatedBio } = req.body;
+
+        if (!updateBio || updatedBio === "") {
+            throw new ApiError(400, "Bio cannot be empty")
+        }
+
+        const user = await User.findByIdAndUpdate(req.user?._id, {
+            $set: { bio: updatedBio }
+        },
+            { new: true })
+
+        return res
+            .status(200)
+            .json(new ApiResponse(200, null, "bio updated successfull"));
+    } catch (error) {
+
+        console.error("Error: ", error);
+
+        if (error instanceof ApiError) {
+            return res.status(error.statusCode).json({
+                success: false,
+                message: error.message,
+                errors: error.errors,
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            errors: [],
+        });
+    }
+})
+
+export const updateProfileImage = asyncHandler(async (req: AuthRequest, res) => {
+    let profileImagePath = req.file?.path;
+    if (!profileImagePath) {
+        throw new ApiError(400, "Profile Image not found");
+    }
+
+    try {
+        const user = await User.findById(req.user?._id)
+        if (!user) {
+            fs.unlinkSync(profileImagePath);
+            throw new ApiError(404, "user not found");
+        }
+
+        if (!user.profileImage) {
+            const profileImage = await uploadOnCloudinary(profileImagePath);
+            user.profileImage = profileImage?.url;
+            user.save({ validateBeforeSave: false })
+            return res.status(201).json(new ApiResponse(201, null, "Profile Image Added Successfully"))
+        } else {
+            const oldProfileImage = user.profileImage;
+            await removeFromCloudnary(oldProfileImage);
+            const newProfileImage = await uploadOnCloudinary(profileImagePath);
+            user.profileImage = newProfileImage?.url;
+            user.save({ validateBeforeSave: false })
+            return res.status(201).json(new ApiResponse(201, null, "Profile Image Updated Successfully"))
+        }
+    } catch (error) {
+        console.error("Error: ", error);
+
+        if (error instanceof ApiError) {
+            return res.status(error.statusCode).json({
+                success: false,
+                message: error.message,
+                errors: error.errors,
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            errors: [],
+        });
+    }
+})
+
+export const getUserProfileData = asyncHandler(async (req: AuthRequest, res) => {
+    const { username } = req.params;
+    const loggedInUserId = req.user?._id;
+
+    if (!username) {
+        throw new ApiError(400, "username not found");
+    }
+
+    try {
+        const profileData = await User.aggregate([
+            {
+                $match: {
+                    username: username,
+                },
+            },
+            {
+                $lookup: {
+                    from: "posts",
+                    localField: "_id",
+                    foreignField: "owner",
+                    as: "posts",
+                }
+            },
+            {
+                $addFields: {
+                    postCount: { $size: "$posts" },
+                    followersCount: { $size: "$followers" },
+                    followingCount: { $size: "$following" },
+                    isFollowing: loggedInUserId ? { $in: [loggedInUserId, "$followers"] } : false
+                },
+            },
+            {
+                $project: {
+                    username: 1,
+                    email: 1,
+                    bio: 1,
+                    profileImage: 1,
+                    postCount: 1,
+                    followersCount: 1,
+                    followingCount: 1,
+                    isFollowing: 1,
+                },
+            },
+        ])
+
+        if (!profileData.length) {
+            throw new ApiError(404, "user not found");
+        }
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(200, profileData[0], "user data fetched successfully")
+            );
+    } catch (error) {
+        console.error("Error: ", error);
+
+        if (error instanceof ApiError) {
+            return res.status(error.statusCode).json({
+                success: false,
+                message: error.message,
+                errors: error.errors,
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            errors: [],
+        });
+    }
 })
