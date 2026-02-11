@@ -618,7 +618,7 @@ export const followUser = asyncHandler(async (req: AuthRequest, res) => {
 })
 
 export const UnfollowUser = asyncHandler(async (req: AuthRequest, res) => {
-    const { username } = req.user?._id;
+    const { username } = req.params;
     const loggedInUser = req.user?._id;
 
     if (!loggedInUser) {
@@ -648,7 +648,7 @@ export const UnfollowUser = asyncHandler(async (req: AuthRequest, res) => {
         })
 
         return res.status(200)
-        .json(new ApiResponse(200, null, `you unfollow${userToUnfollow.username}`))
+        .json(new ApiResponse(200, null, `you unfollow ${userToUnfollow.username}`))
     } catch (error) {
         console.error("Error: ", error);
 
