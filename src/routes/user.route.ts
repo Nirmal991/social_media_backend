@@ -14,7 +14,7 @@ router.post('/refreshToken', refreshAccessToken)
 router.post('/changePassword',verifyJWT, changePassword)
 router.post('/addBio',verifyJWT, addBio)
 router.patch('/updateBio',verifyJWT, updateBio)
-router.patch('/update-profile-image', verifyJWT, updateProfileImage)
-router.get('/get-user-profile-data/:username', verifyJWT, getUserProfileData)
+router.patch('/update-profile-image', verifyJWT,upload.single("profileImage"), updateProfileImage)
+router.get('/get-user-profile-data/:username', verifyJWT ,getUserProfileData)
 
 export default router;

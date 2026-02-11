@@ -5,7 +5,7 @@ export interface IPost {
     image?: string,
     owner: mongoose.Types.ObjectId,
     comments: mongoose.Types.ObjectId[],
-    likes: mongoose.Types.ObjectId[],
+    likes: mongoose.Types .ObjectId[],
 }
 
 export type PostDocument = HydratedDocument<IPost>;
