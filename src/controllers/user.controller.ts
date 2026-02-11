@@ -376,7 +376,7 @@ export const addBio = asyncHandler(async (req: AuthRequest, res) => {
         }
 
         user.bio = bio.trim();
-        user.save({ validateBeforeSave: false });
+        await user.save({ validateBeforeSave: false });
 
         return res
             .status(201)
@@ -404,7 +404,7 @@ export const updateBio = asyncHandler(async (req: AuthRequest, res) => {
     try {
         const { updatedBio } = req.body;
 
-        if (!updateBio || updatedBio === "") {
+        if (!updatedBio || updatedBio === "") {
             throw new ApiError(400, "Bio cannot be empty")
         }
 
@@ -553,3 +553,166 @@ export const getUserProfileData = asyncHandler(async (req: AuthRequest, res) => 
         });
     }
 })
+
+export const followUser = asyncHandler(async (req: AuthRequest, res) => {
+    const loggedInUserId = req.user?._id
+    const { username } = req.params;
+
+    if (!loggedInUserId) {
+        throw new ApiError(400, "Login Fisrt")
+    }
+
+    try {
+        const userToFollowed = await User.findOne({ username });
+
+        if (!userToFollowed) {
+            throw new ApiError(400, "User Not Found")
+        }
+
+        if (userToFollowed?._id.equals(loggedInUserId)) {
+            throw new ApiError(400, "you cannot follow yourself");
+        }
+
+        await User.findByIdAndUpdate(userToFollowed._id,
+            {
+                $addToSet: {
+                    followers: loggedInUserId,
+                }
+            }
+        );
+        await User.findByIdAndUpdate(
+            loggedInUserId,
+            {
+                $addToSet: {
+                    following: userToFollowed._id,
+                },
+            }
+        );
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    null,
+                    `you are following ${userToFollowed.username} now`
+                )
+            );
+    } catch (error) {
+        console.error("Error: ", error);
+
+        if (error instanceof ApiError) {
+            return res.status(error.statusCode).json({
+                success: false,
+                message: error.message,
+                errors: error.errors,
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            errors: [],
+        });
+    }
+})
+
+export const UnfollowUser = asyncHandler(async (req: AuthRequest, res) => {
+    const { username } = req.user?._id;
+    const loggedInUser = req.user?._id;
+
+    if (!loggedInUser) {
+        throw new ApiError(400, "logged in user id not found");
+    }
+
+    try {
+        const userToUnfollow = await User.findOne({ username });
+        if (!userToUnfollow) {
+            throw new ApiError(400, "user not found")
+        }
+
+        if (userToUnfollow._id.equals(loggedInUser)) {
+            throw new ApiError(400, "you cannot unfollow yourself");
+        }
+
+        await User.findByIdAndUpdate(userToUnfollow._id, {
+            $pull: {
+                followers: loggedInUser
+            }
+        })
+
+        await User.findByIdAndUpdate(loggedInUser, {
+            $pull: {
+                following: userToUnfollow._id,
+            }
+        })
+
+        return res.status(200)
+        .json(new ApiResponse(200, null, `you unfollow${userToUnfollow.username}`))
+    } catch (error) {
+        console.error("Error: ", error);
+
+        if (error instanceof ApiError) {
+            return res.status(error.statusCode).json({
+                success: false,
+                message: error.message,
+                errors: error.errors,
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            errors: [],
+        });
+    }
+})
+
+// export const toggleFollowUser = asyncHandler(
+//   async (req: AuthRequest, res) => {
+//     const currentUserId = req.user?._id;
+//     const { targetUserId } = req.params;
+
+//     if (!currentUserId) {
+//       throw new ApiError(401, "Unauthorized");
+//     }
+
+//     if (currentUserId.toString() === targetUserId) {
+//       throw new ApiError(400, "You cannot follow yourself");
+//     }
+
+//     const currentUser = await User.findById(currentUserId);
+//     const targetUser = await User.findById(targetUserId);
+
+//     if (!currentUser || !targetUser) {
+//       throw new ApiError(404, "User not found");
+//     }
+
+//     const isFollowing = currentUser.following.includes(targetUser._id);
+
+//     if (isFollowing) {
+//      
+//       currentUser.following.pull(targetUser._id);
+//       targetUser.followers.pull(currentUser._id);
+
+//       await currentUser.save();
+//       await targetUser.save();
+
+//       return res
+//         .status(200)
+//         .json(new ApiResponse(200, null, "User unfollowed"));
+//     } else {
+//       // 🔺 FOLLOW
+//       currentUser.following.push(targetUser._id);
+//       targetUser.followers.push(currentUser._id);
+
+//       await currentUser.save();
+//       await targetUser.save();
+
+//       return res
+//         .status(200)
+//         .json(new ApiResponse(200, null, "User followed"));
+//     }
+//   }
+// );
+
