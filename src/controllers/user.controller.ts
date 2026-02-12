@@ -617,7 +617,7 @@ export const followUser = asyncHandler(async (req: AuthRequest, res) => {
     }
 })
 
-export const UnfollowUser = asyncHandler(async (req: AuthRequest, res) => {
+export const UnfollowUser = asyncHandler(async (req: AuthRequest, res) => { 
     const { username } = req.params;
     const loggedInUser = req.user?._id;
 

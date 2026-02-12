@@ -1,6 +1,5 @@
 import mongoose, { HydratedDocument } from 'mongoose';
 
-
 export interface IComment {
     post: mongoose.Types.ObjectId,
     comment: string,

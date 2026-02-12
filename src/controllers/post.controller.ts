@@ -193,7 +193,7 @@ export const getAllPostForHomePage = asyncHandler(async (req: AuthRequest, res) 
 
 export const getUserPosts = asyncHandler(async (req: AuthRequest, res) => {
 
-   try {
+  try {
     const { username } = req.params;
 
     if (!username) {
@@ -338,4 +338,96 @@ export const getUserPosts = asyncHandler(async (req: AuthRequest, res) => {
     });
   }
 });
+
+export const updatePost = asyncHandler(async (req: AuthRequest, res) => {
+
+  const userId = req.user?._id;
+
+  if (!userId) {
+    throw new ApiError(400, "User not found");
+  }
+
+  const { postId } = req.params;
+  const { content } = req.body
+
+  if (!content || content === "") {
+    throw new ApiError(400, "content is required and it cannot be empty");
+  }
+
+  if (!postId) {
+    throw new ApiError(400, "post not found");
+  }
+
+  try {
+    const post = await Post.findById(postId);
+
+    if (!post?.owner.equals(userId)) {
+      throw new ApiError(401, "you are unauthorized to perform this action");
+    }
+
+    post.content = content
+    await post.save({ validateBeforeSave: false })
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, post, "Content updated successfully"));
+  } catch (error) {
+    console.error("Error: ", error);
+
+    if (error instanceof ApiError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message,
+        errors: error.errors,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      errors: [],
+    });
+  }
+})
+
+export const deletePost = asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user?._id;
+  if (!userId) {
+    throw new ApiError(400, "User not found")
+  }
+
+  const { postId } = req.params;
+
+  if (!postId) {
+    throw new ApiError(400, "Post not found")
+  }
+
+  try {
+    const deletedPost = await Post.findByIdAndDelete(postId)
+
+    if (!deletedPost) {
+      throw new ApiError(401, "you are not authorized to deleted post")
+    }
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, null, "Post Deleted Successfylly"))
+  } catch (error) {
+    console.error("Error: ", error);
+
+    if (error instanceof ApiError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message,
+        errors: error.errors,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      errors: [],
+    });
+  }
+})
 

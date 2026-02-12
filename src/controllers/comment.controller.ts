@@ -1,0 +1,141 @@
+import { ApiError, ApiResponse, asyncHandler } from "../lib";
+import { AuthRequest } from "../middlewares";
+import { Comment, Post } from "../models";
+
+export const createComment = asyncHandler(async (req: AuthRequest, res) => {
+
+    const userId = req.user?._id;
+    if (!userId) {
+        throw new ApiError(401, "user not found");
+    }
+
+    const {postId} = req.params
+    if (!postId) {
+        throw new ApiError(401, "postId not found");
+    }
+
+    const { comment } = req.body;
+    if (!comment?.trim()) {
+        throw new ApiError(401, "comment not found");
+    }
+    try {
+        const post = await Post.findById(postId);
+        if (!post) {
+            throw new ApiError(404, "post not found");
+        }
+
+        const createComment = await Comment.create({
+            post: post,
+            comment,
+            commentedBy: userId
+        })
+
+        post?.comments.push(createComment._id);
+        await post.save({ validateBeforeSave: false });
+
+        const populateComment = await createComment.populate(
+            "commentedBy",
+            "username profileImage"
+        )
+
+        return res
+            .status(201)
+            .json(new ApiResponse(201, populateComment, "Comment created Successfully"))
+    } catch (error) {
+        console.error("Error: ", error);
+
+        if (error instanceof ApiError) {
+            return res.status(error.statusCode).json({
+                success: false,
+                message: error.message,
+                errors: error.errors,
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            errors: [],
+        });
+    }
+})
+
+export const getCommentByPostId = asyncHandler(async (req: AuthRequest, res) => {
+    const { postId } = req.params;
+
+    try {
+        const comment = await Comment.find({ post: postId })
+            .populate("commentedBy", "username profileImage")
+            .sort({ createdAt: -1 })
+
+        return res
+            .status(200)
+            .json(new ApiResponse(200, comment, "Comment fetched Successfully"))
+    } catch (error) {
+        console.error("Error: ", error);
+
+        if (error instanceof ApiError) {
+            return res.status(error.statusCode).json({
+                success: false,
+                message: error.message,
+                errors: error.errors,
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            errors: [],
+        });
+    }
+})
+
+export const deleteComment = asyncHandler(async (req: AuthRequest, res) => {
+
+    const userId = req.user?._id;
+    if (!userId) {
+
+    }
+    const { commentId, postId } = req.params;
+
+    try {
+        const post = await Post.findById(postId);
+        if (!post) throw new ApiError(404, "post not found");
+
+        const comment = await Comment.findById(commentId);
+        if (!comment) throw new ApiError(404, "comment not found");
+
+        const isPostOwner = post.owner.equals(userId);
+        const isCommentOwner = comment.commentedBy.equals(userId);
+
+        if (!isPostOwner && !isCommentOwner) {
+            throw new ApiError(403, "Not allowed");
+        }
+
+        await Comment.findByIdAndDelete(commentId);
+
+        await Post.findByIdAndUpdate(postId, {
+            $pull: { comments: commentId }
+        })
+
+        return res
+            .status(200)
+            .json(new ApiResponse(200, null, "comment deleted successfully"));
+    } catch (error) {
+        console.error("Error: ", error);
+
+        if (error instanceof ApiError) {
+            return res.status(error.statusCode).json({
+                success: false,
+                message: error.message,
+                errors: error.errors,
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            errors: [],
+        });
+    }
+})
