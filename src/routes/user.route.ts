@@ -8,7 +8,7 @@ router.post('/signup', upload.single("profileImage"), registerUser);
 router.post('/login', loginUser)
 
 
-router.post('/logout',verifyJWT ,logoutUser)
+router.get('/logout',verifyJWT ,logoutUser)
 router.get('/getCurrentUser', verifyJWT, getCurrentUser)
 router.post('/refreshToken', refreshAccessToken)
 router.post('/changePassword',verifyJWT, changePassword)

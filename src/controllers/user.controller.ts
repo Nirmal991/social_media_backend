@@ -1,4 +1,4 @@
-import { ApiError, asyncHandler, signUpSchema, uploadOnCloudinary, ApiResponse, loginSchema, REFRESH_TOKEN_SECRET, removeFromCloudnary } from "../lib"
+import { ApiError, asyncHandler, uploadOnCloudinary, ApiResponse, REFRESH_TOKEN_SECRET, removeFromCloudnary } from "../lib"
 import { AccessTokenPayload, AuthRequest, verifyJWT } from "../middlewares";
 import { User } from "../models";
 import jwt from 'jsonwebtoken';
@@ -28,15 +28,23 @@ const generateAccessAndRefreshToken = async (userId: string) => {
 
 export const registerUser = asyncHandler(async (req, res) => {
 
-    const { error, value } = signUpSchema.validate(req.body, {
-        abortEarly: false,
-    })
+    const { username, email, password } = req.body;
 
-    if (error) {
-        throw new ApiError(400, 'Validation Error', error.details.map((err) => err.message))
+    if (!username || username === "") {
+        throw new ApiError(400, "username is required");
     }
 
-    const { username, email, password } = value;
+    if (!email || email === "") {
+        throw new ApiError(400, "email is required");
+    }
+
+    if (!email.includes("@")) {
+        throw new ApiError(400, "invalid email");
+    }
+
+    if (!password || password === "") {
+        throw new ApiError(400, "passowrd is required");
+    }
     try {
         const existingUser = await User.findOne({
             $or: [{ username, email }],
@@ -125,15 +133,12 @@ export const registerUser = asyncHandler(async (req, res) => {
 })
 
 export const loginUser = asyncHandler(async (req, res) => {
-    const { error, value } = loginSchema.validate(req.body, {
-        abortEarly: false,
-    });
 
-    if (error) {
-        throw new ApiError(400, "Validation Error", error.details.map((err) => err.message))
+    const { username, email, password } = req.body;
+
+    if (!username && !email) {
+        throw new ApiError(400, "username or email is required");
     }
-
-    const { username, email, password } = value;
 
     try {
         const user = await User.findOne({
@@ -617,7 +622,7 @@ export const followUser = asyncHandler(async (req: AuthRequest, res) => {
     }
 })
 
-export const UnfollowUser = asyncHandler(async (req: AuthRequest, res) => { 
+export const UnfollowUser = asyncHandler(async (req: AuthRequest, res) => {
     const { username } = req.params;
     const loggedInUser = req.user?._id;
 
@@ -648,7 +653,7 @@ export const UnfollowUser = asyncHandler(async (req: AuthRequest, res) => {
         })
 
         return res.status(200)
-        .json(new ApiResponse(200, null, `you unfollow ${userToUnfollow.username}`))
+            .json(new ApiResponse(200, null, `you unfollow ${userToUnfollow.username}`))
     } catch (error) {
         console.error("Error: ", error);
 
@@ -691,7 +696,7 @@ export const UnfollowUser = asyncHandler(async (req: AuthRequest, res) => {
 //     const isFollowing = currentUser.following.includes(targetUser._id);
 
 //     if (isFollowing) {
-//      
+//
 //       currentUser.following.pull(targetUser._id);
 //       targetUser.followers.pull(currentUser._id);
 

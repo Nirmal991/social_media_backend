@@ -7,12 +7,12 @@ import cors from "cors";
 import helmet from "helmet";
 import mongoose, { ConnectOptions } from "mongoose";
 
-import { HOST, PORT, connectToMongo } from "./lib";
+import { CORS_ORIGIN, HOST, PORT, connectToMongo } from "./lib";
 import routes from "./routes";
 
 const api = e();
 api.disable("etag");
-api.use(cors());
+api.use(cors({origin: CORS_ORIGIN, credentials: true}));
 api.use(
   helmet({
     contentSecurityPolicy: false,

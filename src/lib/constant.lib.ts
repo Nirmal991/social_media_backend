@@ -24,7 +24,7 @@ export const SMTP_SECURE = process.env.SMTP_SECURE === 'true'
 export const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME
 export const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY 
 export const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET
-
+export const CORS_ORIGIN = process.env.CORS_ORIGIN;
 export const MONGO_URI = process.env.MONGO_URI as string
 export const JWT_SECRET = process.env.JWT_SECRET as string
 export const ACCESS_TOKEN_EXPIRY = process.env.ACCESS_TOKEN_EXPIRY as string
