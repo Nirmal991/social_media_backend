@@ -59,7 +59,7 @@ export const registerUser = asyncHandler(async (req, res) => {
         if (req.file?.path) {
             profileImageLocalPath = req.file?.path;
             const cloudinaryResult = await uploadOnCloudinary(profileImageLocalPath);
-            if (cloudinaryResult?.url) {
+            if (cloudinaryResult?.secure_url) {
                 profileImageURL = cloudinaryResult.url;
             }
         }

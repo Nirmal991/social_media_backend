@@ -339,6 +339,40 @@ export const getUserPosts = asyncHandler(async (req: AuthRequest, res) => {
   }
 });
 
+export const getUserPostById = asyncHandler(async (req: AuthRequest, res) => {
+  console.log("getUserPostById controller hit");
+  const userId = req.user?._id;
+  const { postId } = req.params;
+
+  if (!postId) {
+    throw new ApiError(400, "Post ID is required");
+  }
+
+  const post = await Post.findById(postId)
+    .populate("owner", "username profileImage")
+    .populate({
+      path: "comments",
+      populate: {
+        path: "commentedBy",
+        select: "username profileImage",
+      },
+    })
+    .populate("likes", "username profileImage");
+
+  if (!post) {
+    throw new ApiError(404, "Post not found");
+  }
+
+  if (post.owner._id.toString() !== userId?.toString()) {
+    throw new ApiError(403, "You are not allowed to access this post");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, post, "Post fetched successfully"));
+});
+
+
 export const updatePost = asyncHandler(async (req: AuthRequest, res) => {
 
   const userId = req.user?._id;

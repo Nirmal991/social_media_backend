@@ -4,7 +4,7 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import { IUserDocument, User } from "../models";
 
 export interface AuthRequest extends Request {
-  user?: IUserDocument  
+  user?: IUserDocument
 }
 
 export interface AccessTokenPayload extends JwtPayload {
@@ -36,7 +36,7 @@ export const verifyJWT = asyncHandler(
       if (!user) {
         throw new ApiError(401, "invalid access token");
       }
-
+      console.log("USER", user);
       req.user = user; // now TypeScript is happy
       next();
     } catch (error) {
