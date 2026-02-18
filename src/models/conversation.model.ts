@@ -28,4 +28,4 @@ conversationSchema.pre("save", function () {
     );
 });
 
-export const Converstaion = mongoose.model<IConversationDocument>("Converstaion", conversationSchema);
+export const Conversation = mongoose.model<IConversationDocument>("Converstaion", conversationSchema);
