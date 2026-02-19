@@ -247,7 +247,7 @@ export const getUserConversations = asyncHandler(async (req: AuthRequest, res) =
     })
       .populate("participants", "username profileImage")
       .populate({
-        path: "lastSeen",
+        path: "lastMessage",
         populate: { path: "sender", select: "username profileImage" },
       })
       .sort({ updatedAt: -1 });
