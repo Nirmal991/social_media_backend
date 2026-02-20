@@ -1,3 +1,4 @@
+import { io } from "..";
 import { ApiError, ApiResponse, asyncHandler } from "../lib";
 import { AuthRequest } from "../middlewares";
 import { Comment, Post } from "../models";
@@ -9,7 +10,7 @@ export const createComment = asyncHandler(async (req: AuthRequest, res) => {
         throw new ApiError(401, "user not found");
     }
 
-    const {postId} = req.params
+    const { postId } = req.params
     if (!postId) {
         throw new ApiError(401, "postId not found");
     }
@@ -33,14 +34,43 @@ export const createComment = asyncHandler(async (req: AuthRequest, res) => {
         post?.comments.push(createComment._id);
         await post.save({ validateBeforeSave: false });
 
-        const populateComment = await createComment.populate(
-            "commentedBy",
-            "username profileImage"
-        )
+        const populatedComment = await createComment.populate<{
+            commentedBy: {
+                _id: string;
+                username: string;
+                profileImage?: string;
+            };
+        }>("commentedBy", "username profileImage");
+
+        const ownerId = post.owner._id.toString();
+
+        if(post.owner._id.toString() !== userId.toString()){
+            io.to(post.owner.toString()).emit("postCommented", {
+                postId,
+                commentedBy: {
+                    _id: userId,
+                    username: populatedComment.commentedBy.username
+                },
+                message: `${populatedComment.commentedBy?.username} commented on your post`
+            })
+        }
+
+        // if (ownerId !== userId.toString()) {
+        //     io.to(`user:${ownerId}`).emit("postCommented", {
+        //         postId,
+        //         commentedBy: {
+        //             _id: userId,
+        //             username: populatedComment.commentedBy?.username,
+        //         },
+        //         message: `${populatedComment.commentedBy?.username} commented on your post`,
+        //     });
+
+        //     console.log("Emitted comment notification to:", ownerId);
+        // }
 
         return res
             .status(201)
-            .json(new ApiResponse(201, populateComment, "Comment created Successfully"))
+            .json(new ApiResponse(201, populatedComment, "Comment created Successfully"))
     } catch (error) {
         console.error("Error: ", error);
 

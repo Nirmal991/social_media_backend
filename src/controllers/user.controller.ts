@@ -365,7 +365,6 @@ export const changePassword = asyncHandler(
     }
 );
 
-
 export const addBio = asyncHandler(async (req: AuthRequest, res) => {
     const { bio } = req.body;
 
@@ -670,6 +669,87 @@ export const UnfollowUser = asyncHandler(async (req: AuthRequest, res) => {
             message: "Internal Server Error",
             errors: [],
         });
+    }
+})
+
+export const getUserFollowers = asyncHandler(async (req: AuthRequest, res) => {
+    try {
+        const userId = req.user?._id;
+
+        if (!userId) {
+            throw new ApiError(404, "user id not found");
+        }
+
+        const user = await User.findById(userId).populate(
+            "followers",
+            "username profileImage"
+        );
+
+        return res
+            .status(200)
+            .json(new ApiResponse(200, user, "followers fetched successfully"))
+    } catch (error) {
+        console.error("Error: ", error);
+
+        if (error instanceof ApiError) {
+            return res.status(error.statusCode).json({
+                success: false,
+                message: error.message,
+                errors: error.errors,
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            errors: [],
+        });
+    }
+})
+
+export const searchUser = asyncHandler(async (req: AuthRequest, res) => {
+    try {
+        const { query } = req.query;
+
+        if (!query || typeof query !== "string") {
+            throw new ApiError(400, "search query is required");
+        }
+
+        const currentUserId = req.user?._id;
+
+        const users = await User.find({
+            $and: [
+                {
+                    $or: [
+                        { username: { $regex: query, $options: 'i' } },
+                        { bio: { $regex: query, $options: 'i' } },
+                    ],
+                },
+                { _id: { $ne: currentUserId } },
+            ]
+        })
+            .select('username bio profileImage')
+            .limit(10)
+
+        return res
+            .status(200)
+            .json(new ApiResponse(200, users, "users fetched successfully"));
+    } catch (error) {
+        console.error("Error: ", error);
+
+    if (error instanceof ApiError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message,
+        errors: error.errors,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      errors: [],
+    });
     }
 })
 

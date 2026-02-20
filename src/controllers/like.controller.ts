@@ -1,3 +1,4 @@
+import { io } from "..";
 import { ApiError, ApiResponse, asyncHandler } from "../lib";
 import { AuthRequest } from "../middlewares";
 import { Post } from "../models";
@@ -33,6 +34,15 @@ export const togglePostLike = asyncHandler(async (req: AuthRequest, res) => {
             await Post.findByIdAndUpdate(postId, {
                 $addToSet: { likes: userId }
             })
+
+            if(post.owner.toString() !== userId.toString()){
+                io.to(post.owner.toString()).emit('postLiked', {
+                    postId,
+                    likedBy: userId, 
+                    message: "SomeOne liked your post",
+                })
+            }
+
             return res
                 .status(201)
                 .json(new ApiResponse(201, null, "you liked the post"))

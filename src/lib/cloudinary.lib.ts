@@ -23,6 +23,19 @@ export const uploadOnCloudinary = async (localFilePath: string): Promise<UploadA
     }
 }
 
+export const uploadVideoToCloudinary = async (localFilePath: string) => {
+  try {
+    const response = await clodinary.uploader.upload(localFilePath, {
+      resource_type: "video",
+    });
+    fs.unlinkSync(localFilePath);
+    return response;
+  } catch (error) {
+    console.log("Cloudinary Video Upload Error: ", error);
+    fs.unlinkSync(localFilePath);
+  }
+};
+
 export const removeFromCloudnary = async (imageUrl: string) => {
     try {
         const urlArray = imageUrl.split("/");
@@ -35,4 +48,6 @@ export const removeFromCloudnary = async (imageUrl: string) => {
          console.log("Cloudinary Error: ", error);
     }
 }
+
+
 
